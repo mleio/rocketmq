@@ -110,7 +110,7 @@ public class Producer {
                  *}
                  */
 
-                System.out.printf("%s%n", sendResult);
+                System.out.printf("%s%n : ", sendResult);
             } catch (Exception e) {
                 e.printStackTrace();
                 Thread.sleep(1000);
