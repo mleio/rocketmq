@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Set;
+
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.common.UtilAll;
 import org.apache.rocketmq.common.message.MessageQueue;
@@ -45,8 +46,10 @@ public class ClientConfig {
     private String clientIP = NetworkUtil.getLocalAddress();
     private String instanceName = System.getProperty("rocketmq.client.name", "DEFAULT");
     private int clientCallbackExecutorThreads = Runtime.getRuntime().availableProcessors();
+    @Deprecated
     protected String namespace;
     private boolean namespaceInitialized = false;
+    protected String namespaceV2;
     protected AccessChannel accessChannel = AccessChannel.LOCAL;
 
     /**
@@ -62,6 +65,8 @@ public class ClientConfig {
      */
     private int persistConsumerOffsetInterval = 1000 * 5;
     private long pullTimeDelayMillsWhenException = 1000;
+
+    private int traceMsgBatchNum = 10;
     private boolean unitMode = false;
     private String unitName;
     private boolean decodeReadBody = Boolean.parseBoolean(System.getProperty(DECODE_READ_BODY, "true"));
@@ -96,6 +101,18 @@ public class ClientConfig {
 
     private boolean enableHeartbeatChannelEventListener = true;
 
+    /**
+     * The switch for message trace
+     */
+    protected boolean enableTrace = false;
+
+    /**
+     * The name value of message trace topic. If not set, the default trace topic name will be used.
+     */
+    protected String traceTopic;
+
+    protected int maxPageSizeInGetMetadata = 2000;
+
     public String buildMQClientId() {
         StringBuilder sb = new StringBuilder();
         sb.append(this.getClientIP());
@@ -113,6 +130,14 @@ public class ClientConfig {
         }
 
         return sb.toString();
+    }
+
+    public int getTraceMsgBatchNum() {
+        return traceMsgBatchNum;
+    }
+
+    public void setTraceMsgBatchNum(int traceMsgBatchNum) {
+        this.traceMsgBatchNum = traceMsgBatchNum;
     }
 
     public String getClientIP() {
@@ -137,10 +162,12 @@ public class ClientConfig {
         }
     }
 
+    @Deprecated
     public String withNamespace(String resource) {
         return NamespaceUtil.wrapNamespace(this.getNamespace(), resource);
     }
 
+    @Deprecated
     public Set<String> withNamespace(Set<String> resourceSet) {
         Set<String> resourceWithNamespace = new HashSet<>();
         for (String resource : resourceSet) {
@@ -149,10 +176,12 @@ public class ClientConfig {
         return resourceWithNamespace;
     }
 
+    @Deprecated
     public String withoutNamespace(String resource) {
         return NamespaceUtil.withoutNamespace(resource, this.getNamespace());
     }
 
+    @Deprecated
     public Set<String> withoutNamespace(Set<String> resourceSet) {
         Set<String> resourceWithoutNamespace = new HashSet<>();
         for (String resource : resourceSet) {
@@ -161,6 +190,7 @@ public class ClientConfig {
         return resourceWithoutNamespace;
     }
 
+    @Deprecated
     public MessageQueue queueWithNamespace(MessageQueue queue) {
         if (StringUtils.isEmpty(this.getNamespace())) {
             return queue;
@@ -168,6 +198,7 @@ public class ClientConfig {
         return new MessageQueue(withNamespace(queue.getTopic()), queue.getBrokerName(), queue.getQueueId());
     }
 
+    @Deprecated
     public Collection<MessageQueue> queuesWithNamespace(Collection<MessageQueue> queues) {
         if (StringUtils.isEmpty(this.getNamespace())) {
             return queues;
@@ -206,6 +237,9 @@ public class ClientConfig {
         this.enableHeartbeatChannelEventListener = cc.enableHeartbeatChannelEventListener;
         this.detectInterval = cc.detectInterval;
         this.detectTimeout = cc.detectTimeout;
+        this.namespaceV2 = cc.namespaceV2;
+        this.enableTrace = cc.enableTrace;
+        this.traceTopic = cc.traceTopic;
     }
 
     public ClientConfig cloneClientConfig() {
@@ -235,6 +269,9 @@ public class ClientConfig {
         cc.sendLatencyEnable = sendLatencyEnable;
         cc.detectInterval = detectInterval;
         cc.detectTimeout = detectTimeout;
+        cc.namespaceV2 = namespaceV2;
+        cc.enableTrace = enableTrace;
+        cc.traceTopic = traceTopic;
         return cc;
     }
 
@@ -359,6 +396,7 @@ public class ClientConfig {
         this.decodeDecompressBody = decodeDecompressBody;
     }
 
+    @Deprecated
     public String getNamespace() {
         if (namespaceInitialized) {
             return namespace;
@@ -377,9 +415,18 @@ public class ClientConfig {
         return namespace;
     }
 
+    @Deprecated
     public void setNamespace(String namespace) {
         this.namespace = namespace;
         this.namespaceInitialized = true;
+    }
+
+    public String getNamespaceV2() {
+        return namespaceV2;
+    }
+
+    public void setNamespaceV2(String namespaceV2) {
+        this.namespaceV2 = namespaceV2;
     }
 
     public AccessChannel getAccessChannel() {
@@ -454,6 +501,30 @@ public class ClientConfig {
         this.useHeartbeatV2 = useHeartbeatV2;
     }
 
+    public boolean isEnableTrace() {
+        return enableTrace;
+    }
+
+    public void setEnableTrace(boolean enableTrace) {
+        this.enableTrace = enableTrace;
+    }
+
+    public String getTraceTopic() {
+        return traceTopic;
+    }
+
+    public void setTraceTopic(String traceTopic) {
+        this.traceTopic = traceTopic;
+    }
+
+    public int getMaxPageSizeInGetMetadata() {
+        return maxPageSizeInGetMetadata;
+    }
+
+    public void setMaxPageSizeInGetMetadata(int maxPageSizeInGetMetadata) {
+        this.maxPageSizeInGetMetadata = maxPageSizeInGetMetadata;
+    }
+
     @Override
     public String toString() {
         return "ClientConfig{" +
@@ -463,6 +534,7 @@ public class ClientConfig {
             ", clientCallbackExecutorThreads=" + clientCallbackExecutorThreads +
             ", namespace='" + namespace + '\'' +
             ", namespaceInitialized=" + namespaceInitialized +
+            ", namespaceV2='" + namespaceV2 + '\'' +
             ", accessChannel=" + accessChannel +
             ", pollNameServerInterval=" + pollNameServerInterval +
             ", heartbeatBrokerInterval=" + heartbeatBrokerInterval +
@@ -484,6 +556,8 @@ public class ClientConfig {
             ", sendLatencyEnable=" + sendLatencyEnable +
             ", startDetectorEnable=" + startDetectorEnable +
             ", enableHeartbeatChannelEventListener=" + enableHeartbeatChannelEventListener +
+            ", enableTrace=" + enableTrace +
+            ", traceTopic='" + traceTopic + '\'' +
             '}';
     }
 }
